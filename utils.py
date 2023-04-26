@@ -50,26 +50,4 @@ def clear_apps_table() -> None:
     conn.commit()
     conn.close()
 
-if __name__ == '__main__':
-    script_scenario = [
-        "save_app",
-        "load_app",
-        "clear_app"
-    ]
-
-    for action in script_scenario:
-        if action == "save_app":
-            save_app_list()
-        if action == "load_app":
-            load_app_list_sql()
-        if action == "clear_apps":
-            clear_apps_table()
-
-
-
-
-
-
-
-
 
