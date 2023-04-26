@@ -1,3 +1,5 @@
+from settings import STEAM_GUARD_FILENAME
+
 
 def copy_required_data(data: dict, keys: list) -> dict:
     """
@@ -18,7 +20,7 @@ def get_price(id: str) -> int:
     Возвращает цену товара с помощью отдельного API
     Данный API поддерживает запрос только по одному id единовременно
     """
-    price_req = requests.get("https://store.steampowered.com/api/appdetails?appids=" + str(id) + "&cc=ru")
+    price_req = requests.get("https://store.steampowered.com/api/appdetails?appids=" + id + "&cc=ru")
     if price_req.status_code == 200:
         data = price_req.json()
         if data[id]["success"]:
@@ -33,7 +35,7 @@ if __name__ == '__main__':
     import requests
     from TEST import game_ids
 
-    with open("guard.json", 'r') as f:
+    with open(STEAM_GUARD_FILENAME, 'r') as f:
         guard = json.load(f)
 
     API_KEY = guard["API_KEY"]
