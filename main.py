@@ -18,7 +18,7 @@ def get_price(id: str) -> int:
     Возвращает цену товара с помощью отдельного API
     Данный API поддерживает запрос только по одному id единовременно
     """
-    price_req = requests.get("https://store.steampowered.com/api/appdetails?appids=" + id + "&cc=ru")
+    price_req = requests.get("https://store.steampowered.com/api/appdetails?appids=" + str(id) + "&cc=ru")
     if price_req.status_code == 200:
         data = price_req.json()
         if data[id]["success"]:
@@ -30,10 +30,15 @@ if __name__ == '__main__':
     from steam.client import SteamClient
     from steam.enums import EResult
     import json
+    import requests
     from TEST import game_ids
-    API_KEY = "DB1835D805F384D43C5CA9CA54AAC2B7"
-    LOGIN = "tirkirill"
-    PASSWORD = "Xaoc1212"
+
+    with open("guard.json", 'r') as f:
+        guard = json.load(f)
+
+    API_KEY = guard["API_KEY"]
+    LOGIN = guard["LOGIN"]
+    PASSWORD = guard["PASSWORD"]
 
     required_keys = [
         "gameid",
@@ -48,6 +53,7 @@ if __name__ == '__main__':
 
     client = SteamClient()
     res = client.cli_login(LOGIN, PASSWORD)
+
     if res == EResult.OK:
         names = ["Stardew Valley"]
         ids = [game_ids[name] for name in names]
@@ -58,11 +64,11 @@ if __name__ == '__main__':
         for id in ids:
             product = products_info[id]["common"]
             data = copy_required_data(product, required_keys)
-            data["price"] = get_price(id)
-            with open(id + ".json", 'w') as f:
+            data["price"] = get_price(str(id))
+            with open(str(id) + ".json", 'w') as f:
                 json.dump(data, f)
 
             if need_full:
-                with open("full" + id + ".json", 'w') as f:
+                with open("full" + str(id) + ".json", 'w') as f:
                     json.dump(products_info[id], f)
 
