@@ -1,0 +1,11 @@
+/include
+/Lib
+/Scripts
+/.git
+/__pycache__
+/.idea
+
+TEST.py
+CONSTANTS.py
+*.json
+pyvenv.cfg
