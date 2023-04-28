@@ -1,6 +1,7 @@
 from settings import LOGGING_IS_REQUIRED, DB_CONFIGURATION_FILENAME, BINS_FILENAME
 import json
 import requests
+import logging
 
 def get_db_params() -> dict:
     with open(DB_CONFIGURATION_FILENAME, 'r') as f:

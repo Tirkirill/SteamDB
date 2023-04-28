@@ -98,8 +98,6 @@ def load_details(bin=100, track_progress=True) -> None:
     records = cursor.fetchall()
 
     records_len = len(records)
-    if track_progress:
-        bar = IncrementalBar('Countdown', max=len(records))
 
     finished = False
     while not finished:
@@ -113,6 +111,9 @@ def load_details(bin=100, track_progress=True) -> None:
         i = 0
         seen_id = get_loaded_ids()
         new_ids = set()
+        if track_progress:
+            bar = IncrementalBar('Countdown', max=len(records))
+
         for records_i, row in enumerate(records):
             if i == bin:
                 break
@@ -205,7 +206,6 @@ def load_details(bin=100, track_progress=True) -> None:
             save_loaded_ids(new_ids)
 
         except Exception as e:
-            print(e)
             conn.rollback()
             if conn:
                 cursor.close()
