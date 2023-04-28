@@ -1,4 +1,4 @@
-from utils import save_app_list, load_app_list_sql, clear_apps_table, load_details
+from utils import save_app_list, load_app_list_sql, load_details, clear_tables
 from settings import LOG_FILENAME, LOGGING_IS_REQUIRED
 import logging
 
@@ -10,18 +10,24 @@ if __name__ == '__main__':
         root_logger.addHandler(handler)
 
     script_scenario = [
+        "clear_tables",
         "load_details"
     ]
 
-    for action in script_scenario:
-        if action == "save_app_list":
-            save_app_list()
-        if action == "load_apps":
-            load_app_list_sql()
-        if action == "clear_apps":
-            clear_apps_table()
-        if action == "load_details":
-            load_details()
+    script_params = [
+        ["apps_categories", "app_genres", "app_prices"],
+        []
+    ]
+
+    action_func = {
+        "save_app_list":    save_app_list,
+        "load_apps":        load_app_list_sql,
+        "clear_tables":     clear_tables,
+        "load_details":     load_details
+    }
+
+    for action, params in zip(script_scenario, script_params):
+        action_func[action](*params)
 
 
 
