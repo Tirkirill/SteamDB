@@ -1,7 +1,9 @@
 import json
 import requests
 import psycopg2
-from settings import DB_CONFIGURATION_FILENAME, APP_LIST_FILENAME
+from settings import DB_CONFIGURATION_FILENAME, APP_LIST_FILENAME, NEED_LOGGING
+import logging
+from progress.bar import IncrementalBar
 
 def get_db_params() -> dict:
     with open(DB_CONFIGURATION_FILENAME, 'r') as f:
@@ -40,6 +42,7 @@ def load_app_list_sql() -> None:
     cursor = conn.cursor()
     cursor.executemany(""" INSERT INTO apps (id, name) VALUES (%s, %s) """, data)
     conn.commit()
+    cursor.close()
     conn.close()
 
 def clear_apps_table() -> None:
@@ -48,6 +51,91 @@ def clear_apps_table() -> None:
     cursor = conn.cursor()
     cursor.execute("DELETE FROM apps")
     conn.commit()
+    cursor.close()
     conn.close()
 
+def get_price(id: int) -> int:
+    """
+    Возвращает цену товара с помощью отдельного API
+    Данный API поддерживает запрос только по одному id единовременно
+    """
+    s_id = str(id)
+    price_req = requests.get("https://store.steampowered.com/api/appdetails?appids=" + s_id + "&cc=ru")
+    price = None
+    if price_req.status_code == 200:
+        data = price_req.json()
+        if data[s_id]["success"]:
+            try:
+                if "data" in data[s_id]:
+                    game_data = data[s_id]["data"]
+                    if game_data["is_free"]:
+                        price = 0
+                    else:
+                        if "price_overview" in game_data:
+                            price = data[s_id]["data"]["price_overview"]["final"] // 100
+                        else:
+                            if NEED_LOGGING:
+                                logging.warning("No price for id: " + s_id)
+                else:
+                    if NEED_LOGGING:
+                        logging.warning("No price for id: " + s_id)
+            except Exception as e:
+                if NEED_LOGGING:
+                    logging.error("No price for id: " + s_id, exc_info=True)
+        else:
+            if NEED_LOGGING:
+                logging.warning("No price for id: " + s_id)
+
+    return price
+
+def load_prices(track_progress=True) -> None:
+    """
+    Вставляет цены для всех id в таблице apps в app_prices
+    """
+
+    db_params = get_db_params()
+    try:
+        conn = psycopg2.connect(**db_params)
+    except Exception as e:
+        if NEED_LOGGING: logging.error("SQLError", exc_info=True)
+        return
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(""" SELECT id from apps """)
+    except Exception as e:
+        if NEED_LOGGING:
+            logging.error("SQLError", exc_info=True)
+        cursor.close()
+        conn.close()
+        return
+
+    records = cursor.fetchall()
+    data = []
+
+    if track_progress:
+        bar = IncrementalBar('Countdown', max=len(records))
+
+    for row in records:
+        id = row[0]
+        price = get_price(id)
+        if price is not None:
+            data.append([id, price])
+
+        if track_progress:
+            bar.next()
+
+    if track_progress:
+        bar.finish()
+
+    try:
+        cursor.executemany(""" INSERT INTO app_prices (app_id, price) VALUES (%s, %s) """, data)
+        conn.commit()
+    except Exception as e:
+        if NEED_LOGGING:
+            logging.error("SQLError", exc_info=True)
+
+    cursor.close()
+    conn.close()
 

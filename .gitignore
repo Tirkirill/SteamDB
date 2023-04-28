@@ -5,7 +5,9 @@
 /__pycache__
 /.idea
 
+*.json
+*.log
+
 TEST.py
 CONSTANTS.py
-*.json
 pyvenv.cfg
