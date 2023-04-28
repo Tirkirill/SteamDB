@@ -1,4 +1,4 @@
-from utils import save_app_list, load_app_list_sql, load_details, clear_tables
+from script_funcs import save_app_list, load_app_list_sql, load_details, clear_tables
 from settings import LOG_FILENAME, LOGGING_IS_REQUIRED
 import logging
 
