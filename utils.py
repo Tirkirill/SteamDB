@@ -1,4 +1,4 @@
-from settings import LOGGING_IS_REQUIRED, DB_CONFIGURATION_FILENAME
+from settings import LOGGING_IS_REQUIRED, DB_CONFIGURATION_FILENAME, BINS_FILENAME
 import json
 import requests
 
@@ -49,3 +49,25 @@ def get_details(id: int) -> dict:
             logging.warning("No details for id: " + s_id + ". Status code = " + str(res.status_code))
 
     return game_data
+
+
+def get_loaded_ids() -> set:
+    res_set = set()
+    try:
+        with open(BINS_FILENAME, 'r') as f:
+            for line in f:
+                res_set.add(int(line))
+    except:
+        pass
+
+    return res_set
+
+def save_loaded_ids(ids: list) -> None:
+    with open(BINS_FILENAME, 'a') as f:
+        for id in map(str, ids):
+            f.write(id + "\n")
+
+
+def clear_bins_file() -> None:
+    with open(BINS_FILENAME, 'w') as f:
+        f.write("")

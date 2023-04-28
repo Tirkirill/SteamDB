@@ -3,3 +3,4 @@ DB_CONFIGURATION_FILENAME = "dbconnect.json"
 APP_LIST_FILENAME = "AppList.json"
 LOGGING_IS_REQUIRED = False
 LOG_FILENAME = "py_log.log"
+BINS_FILENAME = "bin.txt"

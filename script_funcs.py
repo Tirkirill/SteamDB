@@ -5,7 +5,7 @@ import logging
 from progress.bar import IncrementalBar
 
 from settings import APP_LIST_FILENAME, LOGGING_IS_REQUIRED
-from utils import get_details, copy_required_data, get_db_params
+from utils import get_details, copy_required_data, get_db_params, save_loaded_ids, get_loaded_ids
 
 def save_app_list() -> None:
     """
@@ -43,7 +43,7 @@ def load_app_list_sql() -> None:
     cursor.close()
     conn.close()
 
-def load_details(track_progress=True) -> None:
+def load_details(bin=100, track_progress=True) -> None:
     db_params = get_db_params()
     try:
         conn = psycopg2.connect(**db_params)
@@ -59,7 +59,6 @@ def load_details(track_progress=True) -> None:
     try:
         cursor.execute(""" SELECT id from genres """)
     except Exception as e:
-        print(e)
         if LOGGING_IS_REQUIRED:
             logging.error("SQLError", exc_info=True)
         cursor.close()
@@ -75,7 +74,6 @@ def load_details(track_progress=True) -> None:
     try:
         cursor.execute(""" SELECT id from categories """)
     except Exception as e:
-        print(e)
         if LOGGING_IS_REQUIRED:
             logging.error("SQLError", exc_info=True)
         cursor.close()
@@ -98,101 +96,125 @@ def load_details(track_progress=True) -> None:
         return
 
     records = cursor.fetchall()
-    data_prices = []
-    data_genres = []
-    data_categories = []
 
-    data_new_categories = []
-    data_new_genres = []
-
+    records_len = len(records)
     if track_progress:
         bar = IncrementalBar('Countdown', max=len(records))
 
-    for row in records:
-        id = row[0]
+    finished = False
+    while not finished:
+        data_prices = []
+        data_genres = []
+        data_categories = []
 
-        details = get_details(id)
+        data_new_categories = []
+        data_new_genres = []
 
-        if details is not None:
-            if "categories" in details:
-                for category_row in details["categories"]:
-                    category_id = category_row["id"]
-                    if category_id not in seen_categories:
-                        seen_categories.add(category_id)
-                        category_name = category_row["description"]
-                        data_new_categories.append([category_id, category_name])
+        i = 0
+        seen_id = get_loaded_ids()
+        new_ids = set()
+        for records_i, row in enumerate(records):
+            if i == bin:
+                break
 
-                    data_categories.append([id, category_id])
+            id = row[0]
 
-            if "genres" in details:
-                for genre_row in details["genres"]:
-                    genre_id = genre_row["id"]
-                    if genre_id not in seen_genres:
-                        seen_genres.add(genre_id)
-                        genre_name = genre_row["description"]
-                        data_new_genres.append([genre_id, genre_name])
+            if id in seen_id:
+                if track_progress:
+                    bar.next()
+                continue
 
-                    data_genres.append([id, genre_id])
+            new_ids.add(id)
 
-            if "price" in details:
-                data_prices.append([id, details["price"]])
+            details = get_details(id)
+
+            if details is not None:
+                if "categories" in details:
+                    for category_row in details["categories"]:
+                        category_id = int(category_row["id"])
+                        if category_id not in seen_categories:
+                            seen_categories.add(category_id)
+                            category_name = category_row["description"]
+                            data_new_categories.append([category_id, category_name])
+
+                        data_categories.append([id, category_id])
+
+                if "genres" in details:
+                    for genre_row in details["genres"]:
+                        genre_id = int(genre_row["id"])
+                        if genre_id not in seen_genres:
+                            seen_genres.add(genre_id)
+                            genre_name = genre_row["description"]
+                            data_new_genres.append([genre_id, genre_name])
+
+                        data_genres.append([id, genre_id])
+
+                if "price" in details:
+                    data_prices.append([id, details["price"]])
+
+            if track_progress:
+                bar.next()
+            i += 1
+            if records_i == records_len - 1:
+                finished = True
 
         if track_progress:
-            bar.next()
+            bar.finish()
 
-    if track_progress:
-        bar.finish()
+        if len(data_new_genres) > 0:
+            try:
+                cursor.executemany(""" INSERT INTO genres (id, name) VALUES (%s, %s) """, data_new_genres)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
 
-    if len(data_new_genres) > 0:
-        try:
-            cursor.executemany(""" INSERT INTO genres (id, name) VALUES (%s, %s) """, data_new_genres)
-        except Exception as e:
-            if LOGGING_IS_REQUIRED:
-                logging.error("SQLError", exc_info=True)
-            raise e
-
-    if len(data_new_categories) > 0:
-        try:
-            cursor.executemany(""" INSERT INTO categories (id, name) VALUES (%s, %s) """, data_new_categories)
-        except Exception as e:
-            if LOGGING_IS_REQUIRED:
-                logging.error("SQLError", exc_info=True)
-            raise e
-
-    try:
-        try:
-            cursor.executemany(""" INSERT INTO apps_categories (app_id, category_id) VALUES (%s, %s) """,
-                               data_categories)
-        except Exception as e:
-            if LOGGING_IS_REQUIRED:
-                logging.error("SQLError", exc_info=True)
-            raise e
+        if len(data_new_categories) > 0:
+            try:
+                cursor.executemany(""" INSERT INTO categories (id, name) VALUES (%s, %s) """, data_new_categories)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
 
         try:
-            cursor.executemany(""" INSERT INTO apps_genres (app_id, genre_id) VALUES (%s, %s) """,
-                               data_genres)
+            try:
+                cursor.executemany(""" INSERT INTO apps_categories (app_id, category_id) VALUES (%s, %s) """,
+                                   data_categories)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
+
+            try:
+                cursor.executemany(""" INSERT INTO apps_genres (app_id, genre_id) VALUES (%s, %s) """,
+                                   data_genres)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
+
+            try:
+                cursor.executemany(""" INSERT INTO apps_prices (app_id, price) VALUES (%s, %s) """, data_prices)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
+
+            conn.commit()
+            save_loaded_ids(new_ids)
+
         except Exception as e:
-            if LOGGING_IS_REQUIRED:
-                logging.error("SQLError", exc_info=True)
-            raise e
+            print(e)
+            conn.rollback()
+            if conn:
+                cursor.close()
+                conn.close()
+            break
 
-        try:
-            cursor.executemany(""" INSERT INTO apps_prices (app_id, price) VALUES (%s, %s) """, data_prices)
-        except Exception as e:
-            if LOGGING_IS_REQUIRED:
-                logging.error("SQLError", exc_info=True)
-            raise e
-
-        conn.commit()
-
-    except Exception as e:
-        print(e)
-        conn.rollback()
-
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
+    if conn:
+        cursor.close()
+        conn.close()
 
 def clear_tables(tables: list) -> None:
     """
@@ -216,3 +238,4 @@ def clear_tables(tables: list) -> None:
             conn.close()
         if err:
             raise err
+

@@ -7,6 +7,7 @@
 
 *.json
 *.log
+*.txt
 
 TEST.py
 CONSTANTS.py
