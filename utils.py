@@ -1,7 +1,8 @@
-from settings import LOGGING_IS_REQUIRED, DB_CONFIGURATION_FILENAME, BINS_FILENAME
+from settings import LOGGING_IS_REQUIRED, DB_CONFIGURATION_FILENAME
 import json
 import requests
 import logging
+import psycopg2
 
 def get_db_params() -> dict:
     with open(DB_CONFIGURATION_FILENAME, 'r') as f:
@@ -43,6 +44,7 @@ def get_details(id: int) -> dict:
                     if LOGGING_IS_REQUIRED:
                         logging.warning("No price for id: " + s_id)
         else:
+            game_data = {"no_data": True}
             if LOGGING_IS_REQUIRED:
                 logging.warning("No details for id: " + s_id)
     else:
@@ -52,23 +54,36 @@ def get_details(id: int) -> dict:
     return game_data
 
 
-def get_loaded_ids() -> set:
+def get_loaded_details_ids() -> set:
     res_set = set()
+    db_params = get_db_params()
     try:
-        with open(BINS_FILENAME, 'r') as f:
-            for line in f:
-                res_set.add(int(line))
-    except:
-        pass
+        conn = psycopg2.connect(**db_params)
+    except Exception as e:
+        if LOGGING_IS_REQUIRED: logging.error("SQLError", exc_info=True)
+        raise e
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+        """SELECT DISTINCT apps_categories.app_id FROM apps_categories
+        UNION
+        SELECT DISTINCT apps_genres.app_id FROM apps_genres
+        UNION
+        SELECT DISTINCT apps_prices.app_id FROM apps_prices
+        UNION
+        SELECT apps.id FROM apps
+        WHERE apps.no_data = True"""
+        )
+        records = cursor.fetchall()
+        for row in records:
+            res_set.add(row[0])
+    except Exception as e:
+        if LOGGING_IS_REQUIRED:
+            logging.error("SQLError", exc_info=True)
+        cursor.close()
+        conn.close()
+        raise e
 
     return res_set
-
-def save_loaded_ids(ids: list) -> None:
-    with open(BINS_FILENAME, 'a') as f:
-        for id in map(str, ids):
-            f.write(id + "\n")
-
-
-def clear_bins_file() -> None:
-    with open(BINS_FILENAME, 'w') as f:
-        f.write("")
