@@ -10,15 +10,13 @@ if __name__ == '__main__':
         root_logger.addHandler(handler)
 
     script_scenario = [
-        #"clear_bins_file",
         #"clear_tables",
         "load_details"
     ]
 
     script_params = [
-        #[],
         #[["apps_prices", "apps_genres", "apps_categories"]],
-        [10]
+        [100, True]
     ]
 
     action_func = {

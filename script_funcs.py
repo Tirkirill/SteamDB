@@ -53,13 +53,14 @@ def load_app_list_sql() -> None:
 
     print("Загрузка списка приложений -- Окончание")
 
-def load_genres_categories_prices(bin=100, track_progress=True) -> None:
+def load_genres_categories_prices(bin=100, track_bar=True) -> None:
     """
     Выбирает из таблицы все приложения и получает по ним все категории, жанры и цену.
     Вставка данных в таблицу происходит пачками (размер: bin)
     Обработанные id записываются в файл DETAILS_PROCESSED_FILENAME (settings.py)
     :param bin: размер пачки
-    :param track_progress: если параметр = True, то в консоли будет отображаться прогресс
+    :param track_bar: если параметр = True, то в консоли будет отображаться прогресс полоской загрузки
+    False - просто выводом
     """
     print("Загрузка жанров, категорий и цен -- Начало")
 
@@ -114,11 +115,14 @@ def load_genres_categories_prices(bin=100, track_progress=True) -> None:
 
     records_len = len(records)
 
-    if track_progress:
+    if track_bar:
         bar = IncrementalBar('Countdown', max=len(records))
 
     finished = False
     seen_id = get_loaded_details_ids()
+
+    if not track_bar:
+        print("Начало загрузки")
 
     while not finished:
         data_prices = []
@@ -135,6 +139,8 @@ def load_genres_categories_prices(bin=100, track_progress=True) -> None:
 
         for records_i, row in enumerate(records):
             if i == bin:
+                if not track_bar:
+                    print("Начало записи до " + str(records_i) + " из " + str(records_len))
                 break
 
             id = row[0]
@@ -175,7 +181,7 @@ def load_genres_categories_prices(bin=100, track_progress=True) -> None:
                 if "price" in details:
                     data_prices.append([id, details["price"]])
 
-            if track_progress:
+            if track_bar:
                 bar.goto(records_i)
 
             i += 1
@@ -238,13 +244,16 @@ def load_genres_categories_prices(bin=100, track_progress=True) -> None:
             conn.rollback()
             break
 
+        if not track_bar:
+            print("Запись прошла успешно")
+
         time.sleep(5)
 
     if conn:
         cursor.close()
         conn.close()
 
-    if track_progress:
+    if track_bar:
         bar.finish()
 
     print("Загрузка жанров, категорий и цен -- Окончание")
