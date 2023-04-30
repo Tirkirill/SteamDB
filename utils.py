@@ -96,9 +96,12 @@ def get_details(id: int, max_attempts:int=5) -> dict:
 def get_tags_data(client, ids: set[int], seen_tags:set=None, new_tags:set=None, no_tags_ids:set=None,
                   max_tag_order:int=None):
     res = []
-    products_info = client.get_product_info(apps=ids)["apps"]
+
+    products_info = client.get_product_info(apps=ids)
+    products_info = products_info["apps"]
     for id in ids:
-        if id in products_info and "common" in products_info[id] and "store_tags" in products_info[id]["common"]:
+        if id in products_info and "common" in products_info[id] and "store_tags" in products_info[id]["common"] \
+                and len(products_info[id]["common"]["store_tags"]) > 0:
             tags_info = products_info[id]["common"]["store_tags"]
             for tag_order, tag_id in tags_info.items():
                 tag_order_int = int(tag_order)

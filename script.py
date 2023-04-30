@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     script_params = [
         #[["apps_prices", "apps_genres", "apps_categories"]],
-        [1000, 10, False]
+        [100, 10, False]
     ]
 
     action_func = {

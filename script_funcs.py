@@ -143,7 +143,7 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
                     data_prices.append([id, details["price"]])
 
             if track_bar:
-                bar.goto(records_i)
+                bar.goto(records_i+1)
 
             i += 1
             if records_i == records_len - 1:
@@ -259,27 +259,31 @@ def load_store_tags(bin=100, max_tag_order=None,track_bar=True) -> None:
         new_ids = set()
         for records_i, row in enumerate(records):
             if i == bin:
-                if not track_bar:
-                    print("Начало записи меток до " + str(records_i) + " из " + str(records_len))
                 break
 
             id = row
 
-            if id in seen_id:
-                continue
+            if id not in seen_id:
+                seen_id.add(id)
+                new_ids.add(id)
 
-            seen_id.add(id)
-            new_ids.add(id)
+                if track_bar:
+                    bar.goto(records_i+1)
 
-            i += 1
+                i += 1
+
             if records_i == records_len - 1:
                 finished = True
 
         new_tags = set()
         no_tags_ids = set()
+        if len(new_ids) == 0:
+            break
+
         tags_data = get_tags_data(client, new_ids, seen_tags, new_tags, no_tags_ids, max_tag_order=max_tag_order)
         data_new_tags = [(tag, "") for tag in new_tags]
 
+        print("Начало записи меток до " + str(records_i+1) + " из " + str(records_len))
         if len(data_new_tags) > 0:
             try:
                 cursor.executemany(""" INSERT INTO store_tags (id, name) VALUES (%s, %s) """, data_new_tags)

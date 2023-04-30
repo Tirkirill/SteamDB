@@ -10,5 +10,4 @@
 *.txt
 
 TEST.py
-CONSTANTS.py
 pyvenv.cfg
