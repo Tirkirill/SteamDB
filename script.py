@@ -1,4 +1,4 @@
-from script_funcs import save_app_list, load_app_list_sql, load_genres_categories_prices, clear_tables
+from script_funcs import save_app_list, load_app_list_sql, load_genres_categories_prices, clear_tables, load_store_tags
 from settings import LOG_FILENAME, LOGGING_IS_REQUIRED
 import logging
 
@@ -23,7 +23,8 @@ if __name__ == '__main__':
         "save_app_list":    save_app_list,
         "load_apps":        load_app_list_sql,
         "clear_tables":     clear_tables,
-        "load_details":     load_genres_categories_prices
+        "load_details":     load_genres_categories_prices,
+        "load_store_tags":  load_store_tags
     }
 
     for action, params in zip(script_scenario, script_params):

@@ -33,7 +33,6 @@ if __name__ == '__main__':
     from steam.enums import EResult
     import json
     import requests
-    from TEST import game_ids
 
     with open(STEAM_GUARD_FILENAME, 'r') as f:
         guard = json.load(f)

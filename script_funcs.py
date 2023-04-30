@@ -6,7 +6,8 @@ from progress.bar import IncrementalBar
 import time
 
 from settings import APP_LIST_FILENAME, LOGGING_IS_REQUIRED
-from utils import get_details, copy_required_data, get_db_params, get_loaded_details_ids, get_seen_objects
+from utils import get_details, copy_required_data, get_db_params, get_loaded_details_ids, get_seen_objects, \
+    get_loaded_tags_id, get_apps_ids, get_tags_data, get_steam_client
 
 def save_app_list() -> None:
     """
@@ -67,24 +68,16 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
     try:
         conn = psycopg2.connect(**db_params)
     except Exception as e:
-        if LOGGING_IS_REQUIRED: logging.error("SQLError", exc_info=True)
+        if LOGGING_IS_REQUIRED:
+            logging.error("SQLError", exc_info=True)
         return
 
     cursor = conn.cursor()
 
-    seen_genres = get_seen_objects("genres")
-    seen_categories = get_seen_objects("categories")
-
-    try:
-        cursor.execute(""" SELECT id from apps WHERE no_data = False """)
-    except Exception as e:
-        if LOGGING_IS_REQUIRED:
-            logging.error("SQLError", exc_info=True)
-        cursor.close()
-        conn.close()
-        return
-
-    records = cursor.fetchall()
+    seen_genres = get_seen_objects("genres", conn, cursor)
+    seen_categories = get_seen_objects("categories", conn, cursor)
+    seen_id = get_loaded_details_ids(conn, cursor)
+    records = get_apps_ids(conn, cursor)
 
     records_len = len(records)
 
@@ -92,7 +85,6 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
         bar = IncrementalBar('Countdown', max=len(records))
 
     finished = False
-    seen_id = get_loaded_details_ids()
 
     if not track_bar:
         print("Начало загрузки")
@@ -108,20 +100,16 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
         no_data_ids = []
 
         i = 0
-        new_ids = set()
 
-        for records_i, row in enumerate(records):
+        for records_i, id in enumerate(records):
             if i == bin:
                 if not track_bar:
                     print("Начало записи до " + str(records_i) + " из " + str(records_len))
                 break
 
-            id = row[0]
-
             if id in seen_id:
                 continue
 
-            new_ids.add(id)
             seen_id.add(id)
 
             details = get_details(id)
@@ -179,7 +167,7 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
 
         if len(no_data_ids) > 0:
             try:
-                update_query = 'UPDATE apps SET no_data = True WHERE id IN {0}'\
+                update_query = 'UPDATE apps SET no_data_details = True WHERE id IN {0}'\
                     .format(no_data_ids).replace("[", "(").replace("]", ")")
                 cursor.execute(update_query)
             except Exception as e:
@@ -235,18 +223,109 @@ def load_store_tags(bin=100, track_bar=True) -> None:
     """
     :param bin: размер пачки
     :param track_bar: если параметр = True, то в консоли будет отображаться прогресс полоской загрузки
-    False - просто выбором
+    False - просто выводом
     """
 
     print("Загрузка меток -- Начало")
 
-    seen_tags = get_seen_objects("store_tags")
+    db_params = get_db_params()
+    try:
+        conn = psycopg2.connect(**db_params)
+    except Exception as e:
+        if LOGGING_IS_REQUIRED:
+            logging.error("SQLError", exc_info=True)
+        return
 
+    cursor = conn.cursor()
+
+    seen_tags = get_seen_objects("store_tags", conn, cursor)
+    seen_id = get_loaded_tags_id(conn, cursor)
+    records = get_apps_ids(conn, cursor)
+
+    records_len = len(records)
+
+    if track_bar:
+        bar = IncrementalBar('Countdown', max=len(records))
+
+    finished = False
+
+    if not track_bar:
+        print("Начало загрузки")
+
+    # Если включена 2-ух факторная аутентификация, то придется ввести код с телефона/почты
+    client = get_steam_client()
+    while not finished:
+        i = 0
+        new_ids = set()
+        for records_i, row in enumerate(records):
+            if i == bin:
+                if not track_bar:
+                    print("Начало записи меток до " + str(records_i) + " из " + str(records_len))
+                break
+
+            id = row
+
+            if id in seen_id:
+                continue
+
+            seen_id.add(id)
+            new_ids.add(id)
+
+            i += 1
+            if records_i == records_len - 1:
+                finished = True
+
+        new_tags = set()
+        no_tags_ids = set()
+        tags_data = get_tags_data(client, new_ids, seen_tags, new_tags, no_tags_ids)
+        data_new_tags = [(tag, "") for tag in new_tags]
+
+        if len(data_new_tags) > 0:
+            try:
+                cursor.executemany(""" INSERT INTO store_tags (id, name) VALUES (%s, %s) """, data_new_tags)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
+
+        if len(no_tags_ids) > 0:
+            try:
+                update_query = 'UPDATE apps SET no_data_tags = True WHERE id IN {0}' \
+                    .format(no_tags_ids).replace("{", "(").replace("}", ")")
+                cursor.execute(update_query)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
+
+        try:
+            try:
+                cursor.executemany(""" INSERT INTO apps_store_tags (app_id, tag_id, tag_order) VALUES (%s, %s, %s) """,
+                                   tags_data)
+            except Exception as e:
+                if LOGGING_IS_REQUIRED:
+                    logging.error("SQLError", exc_info=True)
+                raise e
+
+            conn.commit()
+
+        except Exception as e:
+            conn.rollback()
+            break
+
+        if not track_bar:
+            print("Запись прошла успешно")
+
+        time.sleep(5)
+
+    if conn:
+        cursor.close()
+        conn.close()
+
+    if track_bar:
+        bar.finish()
 
     print("Загрузка меток -- Окончание")
-
-
-
 
 def clear_tables(tables: list) -> None:
     """
