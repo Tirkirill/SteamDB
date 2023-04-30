@@ -219,7 +219,7 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
 
     print("Загрузка жанров, категорий и цен -- Окончание")
 
-def load_store_tags(bin=100, track_bar=True) -> None:
+def load_store_tags(bin=100, max_tag_order=None,track_bar=True) -> None:
     """
     :param bin: размер пачки
     :param track_bar: если параметр = True, то в консоли будет отображаться прогресс полоской загрузки
@@ -277,7 +277,7 @@ def load_store_tags(bin=100, track_bar=True) -> None:
 
         new_tags = set()
         no_tags_ids = set()
-        tags_data = get_tags_data(client, new_ids, seen_tags, new_tags, no_tags_ids)
+        tags_data = get_tags_data(client, new_ids, seen_tags, new_tags, no_tags_ids, max_tag_order=max_tag_order)
         data_new_tags = [(tag, "") for tag in new_tags]
 
         if len(data_new_tags) > 0:
@@ -316,7 +316,7 @@ def load_store_tags(bin=100, track_bar=True) -> None:
         if not track_bar:
             print("Запись прошла успешно")
 
-        time.sleep(5)
+        time.sleep(10)
 
     if conn:
         cursor.close()

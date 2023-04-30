@@ -93,20 +93,23 @@ def get_details(id: int, max_attempts:int=5) -> dict:
 
     return game_data
 
-def get_tags_data(client, ids: set[int], seen_tags:set=None, new_tags:set=None, no_tags_ids:set=None):
+def get_tags_data(client, ids: set[int], seen_tags:set=None, new_tags:set=None, no_tags_ids:set=None,
+                  max_tag_order:int=None):
     res = []
     products_info = client.get_product_info(apps=ids)["apps"]
     for id in ids:
-        product_info = products_info[id]
-        if "common" in product_info and "store_tags" in product_info["common"]:
-            tags_info = product_info["common"]["store_tags"]
+        if id in products_info and "common" in products_info[id] and "store_tags" in products_info[id]["common"]:
+            tags_info = products_info[id]["common"]["store_tags"]
             for tag_order, tag_id in tags_info.items():
+                tag_order_int = int(tag_order)
+                if max_tag_order is not None and max_tag_order < tag_order_int:
+                    break
                 tag_id_int = int(tag_id)
                 if seen_tags is not None and new_tags is not None:
                     if tag_id_int not in seen_tags:
                         new_tags.add(tag_id_int)
                         seen_tags.add(tag_id_int)
-                res.append((id, tag_id_int, int(tag_order)))
+                res.append((id, tag_id_int, tag_order_int))
         else:
             if LOGGING_IS_REQUIRED:
                 logging.warning("No tags for " + str(id))

@@ -11,12 +11,12 @@ if __name__ == '__main__':
 
     script_scenario = [
         #"clear_tables",
-        "load_details"
+        "load_store_tags"
     ]
 
     script_params = [
         #[["apps_prices", "apps_genres", "apps_categories"]],
-        [100, True]
+        [1000, 10, False]
     ]
 
     action_func = {
