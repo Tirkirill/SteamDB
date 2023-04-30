@@ -24,7 +24,6 @@ def copy_required_data(data: dict, keys: list, raise_exception=False) -> dict:
             req_data[key] = data[key]
     return req_data
 
-
 def get_details(id: int, max_attempts:int=5) -> dict:
     s_id = str(id)
     attempt_i = 0
@@ -44,7 +43,7 @@ def get_details(id: int, max_attempts:int=5) -> dict:
             res_json = res.json()
         except Exception as e:
             if LOGGING_IS_REQUIRED:
-                logging.error("Не удалось расшифровать json", exc_info=e)
+                logging.error("Не удалось расшифровать json id: " + s_id, exc_info=e)
             raise e
         res_json = res_json[s_id]
         if "success" in res_json and res_json["success"] and "data" in res_json:
@@ -67,8 +66,12 @@ def get_details(id: int, max_attempts:int=5) -> dict:
         if LOGGING_IS_REQUIRED:
             logging.warning("No details for id: " + s_id + ". Status code = " + str(res.status_code))
 
-    return game_data
+    if (("genres" not in game_data) or (game_data["genres"]) == [])\
+            and (("categories" not in game_data) or (game_data["categories"]) == [])\
+            and (("price" not in game_data) or (game_data["price"] is None)):
+        game_data = {"no_data": True}
 
+    return game_data
 
 def get_loaded_details_ids() -> set:
     res_set = set()
@@ -103,3 +106,26 @@ def get_loaded_details_ids() -> set:
         raise e
 
     return res_set
+
+def get_seen_objects(table_name: str) -> set:
+    """
+    Возвращает id, которые уже записаны в таблицу
+    :param table_name: Строка - название таблицы в postgres
+    :return: Множество id, которые уже записаны в таблицу
+    """
+    seen_objects = set()
+
+    db_params = get_db_params()
+    conn = psycopg2.connect(**db_params)
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(""" SELECT DISTINCT id from """ + table_name)
+    except Exception as e:
+        if conn:
+            cursor.close()
+            conn.close()
+        raise e
+
+    return set([row[0] for row in cursor.fetchall()])

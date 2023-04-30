@@ -6,7 +6,7 @@ from progress.bar import IncrementalBar
 import time
 
 from settings import APP_LIST_FILENAME, LOGGING_IS_REQUIRED
-from utils import get_details, copy_required_data, get_db_params, get_loaded_details_ids
+from utils import get_details, copy_required_data, get_db_params, get_loaded_details_ids, get_seen_objects
 
 def save_app_list() -> None:
     """
@@ -55,9 +55,8 @@ def load_app_list_sql() -> None:
 
 def load_genres_categories_prices(bin=100, track_bar=True) -> None:
     """
-    Выбирает из таблицы все приложения и получает по ним все категории, жанры и цену.
+    Выбирает из таблицы все приложения и получает по ним категории, жанры и цену.
     Вставка данных в таблицу происходит пачками (размер: bin)
-    Обработанные id записываются в файл DETAILS_PROCESSED_FILENAME (settings.py)
     :param bin: размер пачки
     :param track_bar: если параметр = True, то в консоли будет отображаться прогресс полоской загрузки
     False - просто выводом
@@ -73,34 +72,8 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
 
     cursor = conn.cursor()
 
-    seen_genres = set()
-    seen_categories = set()
-
-    try:
-        cursor.execute(""" SELECT id from genres """)
-    except Exception as e:
-        if LOGGING_IS_REQUIRED:
-            logging.error("SQLError", exc_info=True)
-        cursor.close()
-        conn.close()
-        return
-
-    records = cursor.fetchall()
-    for row in records:
-        seen_genres.add(row[0])
-
-    try:
-        cursor.execute(""" SELECT id from categories """)
-    except Exception as e:
-        if LOGGING_IS_REQUIRED:
-            logging.error("SQLError", exc_info=True)
-        cursor.close()
-        conn.close()
-        return
-
-    records = cursor.fetchall()
-    for row in records:
-        seen_categories.add(row[0])
+    seen_genres = get_seen_objects("genres")
+    seen_categories = get_seen_objects("categories")
 
     try:
         cursor.execute(""" SELECT id from apps WHERE no_data = False """)
@@ -257,6 +230,23 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
         bar.finish()
 
     print("Загрузка жанров, категорий и цен -- Окончание")
+
+def load_store_tags(bin=100, track_bar=True) -> None:
+    """
+    :param bin: размер пачки
+    :param track_bar: если параметр = True, то в консоли будет отображаться прогресс полоской загрузки
+    False - просто выбором
+    """
+
+    print("Загрузка меток -- Начало")
+
+    seen_tags = get_seen_objects("store_tags")
+
+
+    print("Загрузка меток -- Окончание")
+
+
+
 
 def clear_tables(tables: list) -> None:
     """
