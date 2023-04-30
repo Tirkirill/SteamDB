@@ -25,12 +25,28 @@ def copy_required_data(data: dict, keys: list, raise_exception=False) -> dict:
     return req_data
 
 
-def get_details(id: int) -> dict:
+def get_details(id: int, max_attempts:int=5) -> dict:
     s_id = str(id)
-    res = requests.get("https://store.steampowered.com/api/appdetails?appids=" + s_id + "&cc=ru")
+    attempt_i = 0
+    get_res = False
+    while not get_res:
+        try:
+            res = requests.get("https://store.steampowered.com/api/appdetails?appids=" + s_id + "&cc=ru")
+            get_res = True
+        except Exception as e:
+            attempt_i += 1
+            print(attempt_i)
+            if attempt_i == max_attempts:
+                raise e
     game_data = None
     if res.status_code == 200:
-        res_json = res.json()[s_id]
+        try:
+            res_json = res.json()
+        except Exception as e:
+            if LOGGING_IS_REQUIRED:
+                logging.error("Не удалось расшифровать json", exc_info=e)
+            raise e
+        res_json = res_json[s_id]
         if "success" in res_json and res_json["success"] and "data" in res_json:
             res_json = res_json["data"]
             game_data = copy_required_data(res_json, ["genres", "categories"])

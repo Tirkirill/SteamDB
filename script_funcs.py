@@ -152,7 +152,7 @@ def load_genres_categories_prices(bin=100, track_bar=True) -> None:
             seen_id.add(id)
 
             details = get_details(id)
-            time.sleep(0.8)
+            time.sleep(0.75)
 
             if details is not None:
                 if "no_data" in details and details["no_data"]:
