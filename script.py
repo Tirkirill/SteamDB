@@ -1,4 +1,5 @@
-from script_funcs import save_app_list, load_app_list_sql, load_genres_categories_prices, clear_tables, load_store_tags
+from script_funcs import save_app_list, load_app_list_sql, load_genres_categories_prices, clear_tables, load_store_tags, \
+    load_tags_name
 from settings import LOG_FILENAME, LOGGING_IS_REQUIRED
 import logging
 
@@ -10,13 +11,11 @@ if __name__ == '__main__':
         root_logger.addHandler(handler)
 
     script_scenario = [
-        #"clear_tables",
-        "load_store_tags"
+        "load_tags_name"
     ]
 
     script_params = [
-        #[["apps_prices", "apps_genres", "apps_categories"]],
-        [100, 10, False]
+        ["name_en", 'english']
     ]
 
     action_func = {
@@ -24,10 +23,12 @@ if __name__ == '__main__':
         "load_apps":        load_app_list_sql,
         "clear_tables":     clear_tables,
         "load_details":     load_genres_categories_prices,
-        "load_store_tags":  load_store_tags
+        "load_store_tags":  load_store_tags,
+        "load_tags_name":   load_tags_name
     }
 
     for action, params in zip(script_scenario, script_params):
+        print(action)
         action_func[action](*params)
 
 

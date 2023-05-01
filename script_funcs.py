@@ -4,10 +4,12 @@ import psycopg2
 import logging
 from progress.bar import IncrementalBar
 import time
+from selenium_utils import get_tags_info_of_app
 
 from settings import APP_LIST_FILENAME, LOGGING_IS_REQUIRED
 from utils import get_details, copy_required_data, get_db_params, get_loaded_details_ids, get_seen_objects, \
-    get_loaded_tags_id, get_apps_ids, get_tags_data, get_steam_client
+    get_loaded_tags_id, get_apps_ids, get_tags_data, get_steam_client, get_named_tags, \
+    get_fetch_list_of_unnamed_tags_with_apps_id_ru, insert_tag_name
 
 def save_app_list() -> None:
     """
@@ -359,4 +361,41 @@ def clear_tables(tables: list) -> None:
             raise err
 
     print("Очищение таблиц -- Окочание")
+
+
+def load_tags_name(col_name:str= "name", language:str= 'default') -> None:
+
+    db_params = get_db_params()
+    conn = psycopg2.connect(**db_params)
+    records = [None]
+    cursor = conn.cursor()
+    try:
+        seen_tags = get_named_tags(cursor, col_name)
+    except Exception as e:
+        if conn:
+            conn.close()
+        if cursor:
+            cursor.close()
+        raise e
+    while len(records) > 0:
+        records = get_fetch_list_of_unnamed_tags_with_apps_id_ru(cursor, col_name)
+        if len(records) == 0:
+            break
+
+        for row in records:
+            app_id = row[1]
+            if row[0] in seen_tags:
+                continue
+            data = get_tags_info_of_app(app_id, seen_tags, language)
+            if data is None:
+                continue
+
+            try:
+                for tag_name, tag_id in data:
+                    print(tag_name, tag_id)
+                    insert_tag_name(cursor, tag_id, tag_name, col_name)
+                conn.commit()
+            except Exception as e:
+                conn.rolback()
+                raise e
 

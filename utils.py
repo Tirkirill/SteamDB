@@ -120,7 +120,7 @@ def get_tags_data(client, ids: set[int], seen_tags:set=None, new_tags:set=None, 
                 no_tags_ids.add(id)
     return res
 
-def get_loaded_details_ids(conn=None, cursor=None) -> set:
+def get_loaded_details_ids(conn:psycopg2.extensions.connection=None, cursor:psycopg2.extensions.cursor=None) -> set:
     """
     :param conn: Подключение
     :param cursor: Курсор
@@ -153,7 +153,8 @@ def get_loaded_details_ids(conn=None, cursor=None) -> set:
 
     return set([row[0] for row in cursor.fetchall()])
 
-def get_seen_objects(table_name: str, conn=None, cursor=None) -> set:
+def get_seen_objects(table_name: str, conn:psycopg2.extensions.connection=None,
+                     cursor:psycopg2.extensions.cursor=None) -> set:
     """
     Возвращает id, которые уже записаны в таблицу
     :param table_name: Строка - название таблицы в postgres
@@ -179,7 +180,7 @@ def get_seen_objects(table_name: str, conn=None, cursor=None) -> set:
 
     return set([row[0] for row in cursor.fetchall()])
 
-def get_loaded_tags_id(conn=None, cursor=None) -> set:
+def get_loaded_tags_id(conn:psycopg2.extensions.connection=None, cursor:psycopg2.extensions.cursor=None) -> set:
     """
     :param conn: Подключение
     :param cursor: Курсор
@@ -206,7 +207,7 @@ def get_loaded_tags_id(conn=None, cursor=None) -> set:
 
     return set([row[0] for row in cursor.fetchall()])
 
-def get_apps_ids(conn=None, cursor=None) -> set:
+def get_apps_ids(conn:psycopg2.extensions.connection=None, cursor:psycopg2.extensions.cursor=None) -> set:
     """
     :param conn: Подключение
     :param cursor: Курсор
@@ -228,6 +229,58 @@ def get_apps_ids(conn=None, cursor=None) -> set:
         raise e
 
     return set([row[0] for row in cursor.fetchall()])
+
+def get_named_tags(cursor:psycopg2.extensions.cursor, col_name:str) -> set:
+    """
+    :param cursor
+    :param col_name
+    :return: Множество id меток, у которых есть значение в col_name
+    """
+    try:
+        cursor.execute(""" SELECT id from store_tags WHERE {0} <> '' """.format(col_name))
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        raise e
+
+    return set([row[0] for row in cursor.fetchall()])
+
+def get_fetch_list_of_unnamed_tags_with_apps_id_ru(cursor:psycopg2.extensions.cursor, col_name:str) -> list:
+    """
+    Возвращает id меток без значения в col_name и приложений, у которых есть эти метки (по одному на каждую метку)
+    :param cursor
+    :param col_name
+    :return: Список [(id метки, id приложения)]
+    """
+    try:
+        cursor.execute("""
+            SELECT DISTINCT
+            store_tags.id,
+            (SELECT app_id FROM apps_store_tags WHERE apps_store_tags.tag_id = store_tags.id LIMIT 1)
+            FROM
+            store_tags
+            WHERE {0} = '' or {0} is NULL
+        """.format(col_name))
+    except Exception as e:
+        if conn:
+            cursor.close()
+            conn.close()
+        raise e
+
+    return cursor.fetchall()
+
+def insert_tag_name(cursor:psycopg2.extensions.cursor, tag_id: int, tag_name:str, col_name:str= "name") -> None:
+    """
+    Вставляет name_ru для метки
+    :param tag_id
+    :param tag_name
+    :param col_name: Название колонки, в которую нужно вставлять название
+    """
+    cursor.execute(""" UPDATE store_tags SET {2}='{0}' WHERE id={1} """.format(tag_name, tag_id, col_name))
+
+
+
+
 
 
 
