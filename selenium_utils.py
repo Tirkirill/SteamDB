@@ -11,9 +11,7 @@ def get_tags_info_of_app(app_id: int, seen_tags:set, language:str='default') -> 
     """
     driver = webdriver.Chrome()
     s_app_id = str(app_id)
-    #"https: // store.steampowered.com / app / 548430?l = english"
     url = "https://store.steampowered.com/app/" + s_app_id + ("" if language == "default" else "?l=" + language)
-    print(url)
     driver.get(url)
     data = []
     try:

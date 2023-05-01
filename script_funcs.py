@@ -364,7 +364,7 @@ def clear_tables(tables: list) -> None:
 
 
 def load_tags_name(col_name:str= "name", language:str= 'default') -> None:
-
+    print("Загрузка меток -- Начало")
     db_params = get_db_params()
     conn = psycopg2.connect(**db_params)
     records = [None]
@@ -377,13 +377,15 @@ def load_tags_name(col_name:str= "name", language:str= 'default') -> None:
         if cursor:
             cursor.close()
         raise e
+    seen_apps = set()
     while len(records) > 0:
-        records = get_fetch_list_of_unnamed_tags_with_apps_id_ru(cursor, col_name)
+        records = get_fetch_list_of_unnamed_tags_with_apps_id_ru(cursor, col_name, seen_apps)
         if len(records) == 0:
             break
 
         for row in records:
             app_id = row[1]
+            seen_apps.add(app_id)
             if row[0] in seen_tags:
                 continue
             data = get_tags_info_of_app(app_id, seen_tags, language)
@@ -398,4 +400,6 @@ def load_tags_name(col_name:str= "name", language:str= 'default') -> None:
             except Exception as e:
                 conn.rolback()
                 raise e
+
+    print("Загрузка меток -- Окончание")
 

@@ -245,26 +245,31 @@ def get_named_tags(cursor:psycopg2.extensions.cursor, col_name:str) -> set:
 
     return set([row[0] for row in cursor.fetchall()])
 
-def get_fetch_list_of_unnamed_tags_with_apps_id_ru(cursor:psycopg2.extensions.cursor, col_name:str) -> list:
+def get_fetch_list_of_unnamed_tags_with_apps_id_ru(cursor:psycopg2.extensions.cursor, col_name:str, seen_apps:set) -> list:
     """
     Возвращает id меток без значения в col_name и приложений, у которых есть эти метки (по одному на каждую метку)
     :param cursor
     :param col_name
     :return: Список [(id метки, id приложения)]
     """
-    try:
-        cursor.execute("""
+    query_template = """
             SELECT DISTINCT
             store_tags.id,
-            (SELECT app_id FROM apps_store_tags WHERE apps_store_tags.tag_id = store_tags.id LIMIT 1)
+            (SELECT app_id FROM apps_store_tags WHERE apps_store_tags.tag_id = store_tags.id AND app_id NOT IN {1} LIMIT 1)
             FROM
             store_tags
             WHERE {0} = '' or {0} is NULL
-        """.format(col_name))
+        """
+    try:
+        if len(seen_apps) == 0:
+            query_template = query_template.replace("AND app_id NOT IN {1}", "")
+            query = query_template.format(col_name)
+        else:
+            query = query_template.format(col_name, seen_apps).replace("{", "(").replace("}", ")")
+        cursor.execute(query)
     except Exception as e:
-        if conn:
+        if cursor:
             cursor.close()
-            conn.close()
         raise e
 
     return cursor.fetchall()
