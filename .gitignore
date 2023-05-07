@@ -6,9 +6,6 @@
 /.idea
 
 *.log
-*.txt
 *.sql
-*.csv
-dbconnect.json
 
 pyvenv.cfg
